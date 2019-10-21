@@ -1,6 +1,6 @@
 python ../code/pafscaff.py dochtml newlog
 
-python ../code/pafscaff.py --description > ../PAFScaff.md
+python ../code/pafscaff.py --description | sed 's/^/# /' > ../PAFScaff.md
 echo >> ../PAFScaff.md
 
 echo '```' >> ../PAFScaff.md

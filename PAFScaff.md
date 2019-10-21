@@ -1,4 +1,4 @@
-PAFScaff: Pairwise mApping Format reference-based scaffold anchoring and super-scaffolding
+# PAFScaff: Pairwise mApping Format reference-based scaffold anchoring and super-scaffolding
 
 ```
 PAFScaff v0.2.1
