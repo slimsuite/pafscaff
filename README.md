@@ -18,7 +18,7 @@ scaffolds. The lengths of these gaps are determined by the space between the ref
 overhanging query scaffold regions (min. length 10). The alternating case of these gaps makes them easy to
 identify later.
 
-See [PAFScaff.md](./PAFScaff.md), <https://slimsuite.github.io/pafscaff/> for more information. General SLiMSuite run documentation can be
+For more information, please see [PAFScaff.md](./PAFScaff.md), or <https://slimsuite.github.io/pafscaff/>. General SLiMSuite run documentation can be
 found at <https://github.com/slimsuite/SLiMSuite>.
 
 **NOTE:** PAFScaff is under development and documentation might be a bit sparse. Please contact the author or
