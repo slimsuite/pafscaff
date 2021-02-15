@@ -1,0 +1,12 @@
+#~~#	#~+~~+~#	#~~#
+#LOG	00:00:00	Activity Log for PAFScaff V0.4.1: Tue Feb 16 10:13:53 2021
+#DIR	00:00:00	Run from directory: /Users/redwards/OneDrive - UNSW/projects/PAFScaff-Aug19/code/docs
+#ARG	00:00:00	Commandline arguments: dochtml newlog
+#CMD	00:00:00	Full Command List: log=pafscaff.log dochtml newlog
+#VIO	00:00:00	Verbosity: 1; Interactivity: 0.
+#BASE	00:00:00	pafscaff
+#FORKS	00:00:00	Forking recommended to speed up operation: set forks>0 to use multiple threads.
+#RMD	00:00:00	RMarkdown PAFScaff documentation output to pafscaff.docs.Rmd
+#RCMD	00:00:00	Rscript -e 'library(rmarkdown); rmarkdown::render("pafscaff.docs.Rmd", "html_document")'
+#RCMD	00:00:00	pafscaff.docs.html generated from pafscaff.docs.Rmd
+#LOG	00:00:00	PAFScaff V0.4.1 End: Tue Feb 16 10:13:53 2021

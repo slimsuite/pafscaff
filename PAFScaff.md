@@ -1,7 +1,7 @@
-PAFScaff: Pairwise mApping Format reference-based scaffold anchoring and super-scaffolding
+# PAFScaff: Pairwise mApping Format reference-based scaffold anchoring and super-scaffolding
 
 ```
-PAFScaff v0.2.1
+PAFScaff v0.4.1
 ```
 
 For a better rendering and navigation of this document, please download and open [`./docs/pafscaff.docs.html`](./docs/pafscaff.docs.html), or visit <https://slimsuite.github.io/pafscaff/>.
@@ -66,16 +66,21 @@ use commandline options, including setting default values with **INI files**.
 ### ~ Input/Output options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
 pafin=PAFFILE   : PAF generated from $REFERENCE $ASSEMBLY mapping; or run minimap2 [minimap2]
 basefile=STR    : Base for file outputs [PAFIN basefile]
-seqin=FASFILE   : Input genome to identify variants in ($ASSEMBLY) []
+seqin=FASFILE   : Input genome assembly to map/scaffold onto $REFERENCE (minimap2 $ASSEMBLY) []
 reference=FILE  : Fasta (with accession numbers matching Locus IDs) ($REFERENCE) []
 assembly=FASFILE: As seqin=FASFILE
 refprefix=X     : Reference chromosome prefix. If None, will used all $REFERENCE scaffolds [None]
 newprefix=X     : Assembly chromosome prefix. If None, will not rename $ASSEMBLY scaffolds [None]
 unplaced=X      : Unplaced scaffold prefix. If None, will not rename unplaced $ASSEMBLY scaffolds [None]
 sorted=X        : Criterion for $ASSEMBLY scaffold sorting (QryLen/Coverage/RefStart/None) [QryLen]
+minmap=PERC     : Minimum percentage mapping to a chromosome for assignment [0.0]
+minpurity=PERC  : Minimum percentage "purity" for assignment to Ref chromosome [50.0]
 revcomp=T/F     : Whether to reverse complement relevant scaffolds to maximise concordance [True]
-scaffold=T/F    : Whether to "anchore" non-overlapping scaffolds by Coverage and then scaffold [True]
+scaffold=T/F    : Whether to "anchor" non-overlapping scaffolds by Coverage and then scaffold [True]
 dochtml=T/F     : Generate HTML PAFScaff documentation (*.info.html) instead of main run [False]
+pagsat=T/F      : Whether to output sequence names in special PAGSAT-compatible format [False]
+newchr=X        : Prefix for short PAGSAT sequence identifiers [ctg]
+spcode=X        : Species code for renaming assembly sequences in PAGSAT mode [PAFSCAFF]
 ### ~ Mapping/Classification options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
 minimap2=PROG   : Full path to run minimap2 [minimap2]
 mmsecnum=INT    : Max. number of secondary alignments to keep (minimap2 -N) [0]
@@ -119,7 +124,17 @@ added:
 * `Trans` = Summed query coverage for all other reference chromosomes/scaffolds.
 
 Together, these are used to establish the total percentage of query coverage that is scaffolded, versus mapping
-to a different reference sequence.
+to a different reference sequence. These are converted into:
+
+* `Purity` = 100 * (`Coverage` + `Inv`) / (`Coverage` + `Inv` + `Trans`)
+
+v0.4.0 has introduced a couple of additional parameters than can be used to increase the stringency of any
+mapping. This is mainly for the purpose of reducing situtations where highly repetitive multi-mapping sequences
+are assigned to a single chromosome. By default, `minpurity=50.0`, meaning that at least half of the chromosome
+mapping should be to the main reference chromosome.
+
+* minmap=PERC   : Minimum percentage mapping to a chromosome for assignment [0.0]
+* minpurity=PERC: Minimum percentage "purity" for assignment to Ref chromosome [50.0]
 
 Once queries have been assigned to reference scaffolds, they are then ordered according to the reference
 scaffold and start position of the match to that scaffold. Queries are also sorted for the purposes of renaming,

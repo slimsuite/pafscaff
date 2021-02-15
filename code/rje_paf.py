@@ -19,8 +19,8 @@
 """
 Module:       rje_paf
 Description:  Minimap2 PAF parser and converter
-Version:      0.8.0
-Last Edit:    13/09/19
+Version:      0.11.0
+Last Edit:    20/01/21
 Copyright (C) 2019  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -65,6 +65,13 @@ Commandline:
     minimap2=PROG   : Full path to run minimap2 [minimap2]
     mapopt=CDICT    : Dictionary of minimap2 options [N:100,p:0.0001,x:asm5]
     mapsplice=T/F   : Switch default minimap2 options to `-x splice -uf -C5` [False]
+    reads=FILELIST  : List of fasta/fastq read files for minimap2 mapping to BAM. Wildcard allowed. Can be gzipped. []
+    readtype=LIST   : List of ont/pb/hifi file types matching reads for minimap2 mapping [ont]
+    ### ~ Coverage checking mode (dev only) ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+    checkpos=TDTFILE: File of Locus, Start, End positions for read coverage checking [None]
+    checkfields=LIST: Fields in checkpos file to give Locus, Start and End for checking [Locus,Start,End]
+    checkflanks=LIST: List of lengths flanking check regions that must also be spanned by reads [0,100,1000,5000]
+    spanid=X        : Generate sets of read IDs that span checkpos regions, grouped by values of field X []
     ### ~ Variant mode (dev only) ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
     snptableout=T/F : Generated output of filtered variants to SNP Table [False]
     qcut=X          : Min. quality score for a mapped read to be included [0]
@@ -91,7 +98,7 @@ slimsuitepath = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__
 sys.path.append(os.path.join(slimsuitepath,'libraries/'))
 sys.path.append(os.path.join(slimsuitepath,'tools/'))
 ### User modules - remember to add *.__doc__ to cmdHelp() below ###
-import rje, rje_obj, rje_db, rje_seqlist, rje_sequence
+import rje, rje_forker, rje_obj, rje_db, rje_seqlist, rje_sequence
 #import numpy as np
 #########################################################################################################################
 def history():  ### Program History - only a method for PythonWin collapsing! ###
@@ -110,6 +117,12 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.7.2 - Fixed alnlen bug - minimap2 ignore Ns for alignment length calculation. Fixed endextend bug.
     # 0.7.3 - Added minlocid and minloclen filtering to PAF parsing to speed up processing. Set default alnseq=F.
     # 0.8.0 - Added developmental variant calling options.
+    # 0.9.0 - Added long-read mapping to BAM option.
+    # 0.10.0 - Added longreadMinimapPAF() and checkpos=TDTFILE options.
+    # 0.10.1 - Added spanid=X: Generate sets of read IDs that span checkpos regions, based on values of field X []
+    # 0.10.2 - Fixed formatting for Python 2.6 back compatibility for servers.
+    # 0.10.3 - Fixing issues of PAF files not being generated.
+    # 0.11.0 - Added HiFi read type.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -136,12 +149,13 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [ ] : Add fasta output of hit sequences. (Account for introns.)
     # [Y] : Possible update of cs string when using endextend
     # [ ] : Add minlocid etc. cutoffs to speed up processing.
-    # [ ] : Fixed endextend bug
+    # [ ] : Fix endextend bug
+    # [Y] : Add reads=LIST etc. and move the long read BAM generation here?
     '''
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('RJE_PAF', '0.8.0', 'September 2019', '2019')
+    (program, version, last_edit, copy_right) = ('RJE_PAF', '0.11.0', 'January 2021', '2019')
     description = 'Minimap2 PAF parser and converter'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -264,10 +278,12 @@ class PAF(rje_obj.RJE_Object):
     PAF Class. Author: Rich Edwards (2019).
 
     Str:str
+    - CheckPos=TDTFILE    : File of Locus, Start, End positions for read coverage checking [None]
     - Minimap2=PROG   : Full path to run minimap2 [minimap2]
     - PAFIn=PAFFILE   : PAF generated from $REFERENCE $ASSEMBLY mapping []
     - Reference=FILE  : Fasta (with accession numbers matching Locus IDs) ($REFERENCE) []
     - SeqIn=FASFILE   : Input genome to identify variants in ($ASSEMBLY) []
+    - SpanID=X        : Generate sets of read IDs that span checkpos regions, based on values of field X []
     - TmpDir=PATH     : Temporary directory to use when forking [./tmp/]
 
     Bool:boolean
@@ -298,6 +314,10 @@ class PAF(rje_obj.RJE_Object):
     File:file handles with matching str filenames
     
     List:list
+    - CheckFields=LIST    : Fields in checkpos file to give Locus, Start and End for checking [Locus,Start,End]
+    - CheckFlanks=LIST       : List of lengths flanking check regions that must also be spanned by reads [0,100,1000,5000]
+    - Reads=FILELIST  : List of fasta/fastq files containing reads. Wildcard allowed. Can be gzipped. []
+    - ReadType=LIST   : List of ont/pb/hifi file types matching reads for minimap2 mapping [ont]
     - SkipLoci=LIST   : List of loci to exclude from pileup parsing (e.g. mitochondria) []
 
     Dict:dictionary    
@@ -314,12 +334,12 @@ class PAF(rje_obj.RJE_Object):
     def _setAttributes(self):   ### Sets Attributes of Object
         '''Sets Attributes of Object.'''
         ### ~ Basics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-        self.strlist = ['Minimap2','PAFIn','SeqIn','Reference','TmpDir']
+        self.strlist = ['CheckPos','Minimap2','PAFIn','SeqIn','SpanID','Reference','TmpDir']
         self.boollist = ['AlnSeq','BiAllelic','IgnoreN','IgnoreRef','Indels','LocalAln','MapSplice','MockBLAST','RID','SNPTableOut','UniqueHit','UniqueOut']
         self.intlist = ['AbsMinCut','EndExtend','MinLocLen','MinQN','QCut']
         self.numlist = ['MinCut','MinLocID']
         self.filelist = []
-        self.listlist = ['SkipLoci']
+        self.listlist = ['CheckFields','CheckFlanks','Reads','ReadType','SkipLoci']
         self.dictlist = ['MapOpt']
         self.objlist = ['Assembly','Reference']
         ### ~ Defaults ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -330,7 +350,11 @@ class PAF(rje_obj.RJE_Object):
         self.setInt({'AbsMinCut':2,'EndExtend':0,'MinLocLen':1,'MinQN':10,'QCut':0})
         self.setNum({'MinCut':0.05,'MinLocID':0.0})
         self.dict['MapOpt'] = {} #'N':'100','p':'0.0001','x':'asm5'}
+        self.list['CheckFlanks'] = [0,100,1000,5000]
+        self.list['CheckFields'] = ['Locus','Start','End']
         ### ~ Other Attributes ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        self.list['ReadType'] = ['ont']
+        self.obj['Forker']  = rje_forker.Forker(self.log,['logfork=F']+self.cmd_list)
         self._setForkAttributes()   # Delete if no forking
 #########################################################################################################################
     def _cmdList(self):     ### Sets Attributes from commandline
@@ -346,9 +370,9 @@ class PAF(rje_obj.RJE_Object):
                 self._cmdRead(cmd,type='file',att='SeqIn',arg='assembly')  # No need for arg if arg = att.lower()
                 self._cmdRead(cmd,type='file',att='Reference',arg='searchdb')  # No need for arg if arg = att.lower()
                 self._cmdRead(cmd,type='file',att='Reference',arg='refgenome')  # No need for arg if arg = att.lower()
-                self._cmdReadList(cmd,'str',['Minimap2'])   # Normal strings
+                self._cmdReadList(cmd,'str',['Minimap2','SpanID'])   # Normal strings
                 self._cmdReadList(cmd,'path',['TmpDir'])  # String representing directory path
-                self._cmdReadList(cmd,'file',['PAFIn','SeqIn','Reference'])  # String representing file path
+                self._cmdReadList(cmd,'file',['CheckPos','PAFIn','SeqIn','Reference'])  # String representing file path
                 #self._cmdReadList(cmd,'date',['Att'])  # String representing date YYYY-MM-DD
                 self._cmdReadList(cmd,'bool',['AlnSeq','BiAllelic','IgnoreN','IgnoreRef','Indels','LocalAln','MapSplice','MockBLAST','RID','SNPTableOut','UniqueHit','UniqueOut'])  # True/False Booleans
                 self._cmdReadList(cmd,'int',['AbsMinCut','EndExtend','MinLocLen','MinQN','QCut'])   # Integers
@@ -356,12 +380,15 @@ class PAF(rje_obj.RJE_Object):
                 self._cmdReadList(cmd,'float',['MinCut']) # Floats
                 #self._cmdReadList(cmd,'min',['Att'])   # Integer value part of min,max command
                 #self._cmdReadList(cmd,'max',['Att'])   # Integer value part of min,max command
-                self._cmdReadList(cmd,'list',['SkipLoci'])  # List of strings (split on commas or file lines)
+                self._cmdReadList(cmd,'list',['CheckFields','ReadType','SkipLoci'])  # List of strings (split on commas or file lines)
+                self._cmdReadList(cmd,'ilist',['CheckFlanks']) # Comma separated list as integers
                 #self._cmdReadList(cmd,'clist',['Att']) # Comma separated list as a *string* (self.str)
-                #self._cmdReadList(cmd,'glist',['Att']) # List of files using wildcards and glob
+                self._cmdReadList(cmd,'glist',['Reads']) # List of files using wildcards and glob
                 self._cmdReadList(cmd,'cdict',['MapOpt']) # Splits comma separated X:Y pairs into dictionary
                 #self._cmdReadList(cmd,'cdictlist',['Att']) # As cdict but also enters keys into list
             except: self.errorLog('Problem with cmd:%s' % cmd)
+        self.list['CheckFlanks'] = rje.intList(self.list['CheckFlanks'])
+        self.list['CheckFlanks'].sort()
         #if not self.getBool('AlnSeq'): self.warnLog('alnseq=F mode is developmental - please report odd behaviour.')
         #if self.getInt('EndExtend') > 0:
         #    self.warnLog('Endextend>0 bug may cause some incorrect trimming. Watch for alignment positions warnings and consider running with endextend=0')
@@ -371,6 +398,7 @@ class PAF(rje_obj.RJE_Object):
     def run(self):  ### Main run method
         '''Main run method.'''
         try:### ~ [1] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            if self.getStrLC('CheckPos'): return self.checkPos()
             self.setup()
             if self.getStrLC('PAFIn') in ['minimap','minimap2']:
                 self.setStr({'PAFIn':'%s.paf' % self.baseFile()})
@@ -478,6 +506,8 @@ class PAF(rje_obj.RJE_Object):
                     self.progLog('\r#PAF','Parsing %s lines' % (rje.iStr(px)))
                     px += 1
                     data = string.split(rje.chomp(line),'\t')
+                    #i# Added for checkpos
+                    if len(data) < len(pafhead): continue
                     # Generate entry
                     pentry = {'#':px}
                     for i in range(headx):
@@ -488,7 +518,11 @@ class PAF(rje_obj.RJE_Object):
                         pentry[pdat[:2]] = pdat[3:]
                     if pentry['Qry'].endswith(debugstr): self.bugPrint('%s' % pentry)
                     if filter:
-                        nn = string.atoi(pentry['nn'][2:])
+                        nn = 0
+                        try:
+                            if 'nn' in pentry: nn = string.atoi(pentry['nn'][2:])
+                        except:
+                            if self.debugging(): self.errorLog('Unexpected error!')
                         if (pentry['Length'] + nn) < minloclen:
                             lfiltx += 1
                             if pentry['Qry'].endswith(debugstr): self.debug('MinLen: %s' % pentry)
@@ -2407,6 +2441,291 @@ class PAF(rje_obj.RJE_Object):
 
 
         except: self.errorLog('%s.pafToVariants error' % self.prog()); return False
+#########################################################################################################################
+    ### <8> ### Long read mapping to PAF/BAM files                                                                      #
+#########################################################################################################################
+    def longreadMinimapPAF(self,paffile=None):  ### Performs long read versus assembly minimap2 and saves to PAF
+        '''
+        Performs long read versus assembly minimap2 and saves to PAF
+        :return: paffile
+        '''
+        try:### ~ [1] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            paf = self
+            if not paffile:
+                paffile = self.baseFile() + '.paf'
+
+            ### ~ [2] ~ Generate individual BAM files ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            if self.force() or not rje.exists(paffile):
+                if not self.list['Reads']: raise IOError('Cannot generate long read PAF file without reads=LIST')
+                mmv = os.popen('%s --version' % paf.getStr('Minimap2')).read()
+                if not mmv: raise ValueError('Could not detect minimap2 version: check minimap2=PROG setting (%s)' % paf.getStr('Minimap2'))
+                rje.backup(self,paffile)
+                #!# Check these BAM files have headers! #!#
+                paflist = []; rx = 0
+                if not self.list['ReadType']:
+                    self.warnLog('Read Type not given (pb/ont/hifi): check readtype=LIST. Will use "ont".')
+                elif len(self.list['ReadType']) == 1 and len(self.list['Reads']) != 1:
+                    self.printLog('#READS','Using "%s" as read type for all long reads' % self.list['ReadType'][0])
+                elif len(self.list['ReadType']) != len(self.list['Reads']):
+                    self.warnLog('reads=FILELIST vs readtype=LIST length mismatch: check readtype=LIST. Will cycle if needed.')
+                for readfile in self.list['Reads']:
+                    if not rje.exists(readfile): raise IOError('Read file "{0}" not found!'.format(readfile))
+                    if self.list['ReadType']:
+                        try: rtype = self.list['ReadType'][rx]; rx +=1
+                        except: rtype = self.list['ReadType'][0]; rx = 1
+                        if rtype in ['pacbio','pac']: rtype = 'pb'
+                        if rtype in ['hifi','ccs']: rtype = 'hifi'
+                        if rtype not in ['ont','pb','hifi']:
+                            self.warnLog('Read Type "%s" not recognised (pb/ont/hifi): check readtype=LIST. Will use "ont".' % rtype)
+                            rtype = 'ont'
+                    else: rtype = 'ont'
+                    prefix = '{0}.{1}'.format(rje.baseFile(self.getStr('SeqIn'),strip_path=True),rje.baseFile(readfile,strip_path=True))
+                    maplog = '{0}.log'.format(prefix)
+                    ## ~ [2a] Make SAM ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                    maprun = '{0} -t {1} --secondary=no -o {2}.paf -L -x map-{3} {4} {5}'.format(paf.getStr('Minimap2'),self.threads(),prefix,rtype,self.getStr('SeqIn'),readfile)
+                    if rtype in ['hifi']:
+                        maprun = '{0} -t {1} --secondary=no -o {2}.paf -L -x asm20 {4} {5}'.format(paf.getStr('Minimap2'),self.threads(),prefix,rtype,self.getStr('SeqIn'),readfile)
+                    logline = self.loggedSysCall(maprun,maplog,append=False)
+                    #!# Add check that run has finished #!#
+                    rpfile = '{0}.paf'.format(prefix)
+                    if not rje.exists(rpfile): raise IOError('Minimap2 output not found: {0}'.format(rpfile))
+                    paflist.append(rpfile)
+
+            ### ~ [3] ~ Merge individual PAF files ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+                if len(paflist) > 1:
+                    # samtools merge - merges multiple sorted input files into a single output.
+                    bammerge = 'cat {0} > {1}'.format(' '.join(paflist),paffile)
+                    logline = self.loggedSysCall(bammerge,append=True)
+                    if not rje.exists(paffile): raise IOError('Merged PAF file "%s" not generated' % paffile)
+                    for sortbam in paflist: os.unlink(sortbam)
+                else: os.rename(paflist[0],paffile)
+
+            return paffile
+        except:
+            self.errorLog('PAF.longreadMinimapPAF() error'); raise
+            #return None
+#########################################################################################################################
+    def longreadMPileup(self): return self.longreadMinimapBAM()
+    def longreadMinimapBAM(self):  ### Performs long read versus assembly minimap2 and to converts BAM
+        '''
+        Performs long read versus assembly minimap2 and converts to BAM file
+        :return: bamfile/None
+        '''
+        try:### ~ [1] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            paf = self
+            bamfile = self.baseFile() + '.bam'
+
+            ### ~ [2] ~ Generate individual BAM files ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            if self.force() or not rje.exists(bamfile):
+                mmv = os.popen('%s --version' % paf.getStr('Minimap2')).read()
+                if not mmv: raise ValueError('Could not detect minimap2 version: check minimap2=PROG setting (%s)' % paf.getStr('Minimap2'))
+                rje.backup(self,bamfile)
+                #!# Check these BAM files have headers! #!#
+                bamlist = []; rx = 0
+                if not self.list['ReadType']:
+                    self.warnLog('Read Type not given (pb/ont): check readtype=LIST. Will use "ont".')
+                elif len(self.list['ReadType']) == 1 and len(self.list['Reads']) != 1:
+                    self.printLog('#READS','Using "%s" as read type for all long reads' % self.list['ReadType'][0])
+                elif len(self.list['ReadType']) != len(self.list['Reads']):
+                    self.warnLog('reads=FILELIST vs readtype=LIST length mismatch: check readtype=LIST. Will cycle if needed.')
+                for readfile in self.list['Reads']:
+                    if not rje.exists(readfile): raise IOError('Read file "{0}" not found!'.format(readfile))
+                    if self.list['ReadType']:
+                        try: rtype = self.list['ReadType'][rx]; rx +=1
+                        except: rtype = self.list['ReadType'][0]; rx = 1
+                        if rtype in ['pacbio','pac']: rtype = 'pb'
+                        if rtype in ['hifi','ccs']: rtype = 'hifi'
+                        if rtype not in ['ont','pb','hifi']:
+                            self.warnLog('Read Type "%s" not recognised (pb/ont): check readtype=LIST. Will use "ont".' % rtype)
+                            rtype = 'ont'
+                    else: rtype = 'ont'
+                    prefix = '{0}.{1}'.format(rje.baseFile(self.getStr('SeqIn'),strip_path=True),rje.baseFile(readfile,strip_path=True))
+                    maplog = '{0}.log'.format(prefix)
+                    ## ~ [2a] Make SAM ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                    maprun = '{0} -t {1} --secondary=no -o {2}.sam -L -ax map-{3} {4} {5}'.format(paf.getStr('Minimap2'),self.threads(),prefix,rtype,self.getStr('SeqIn'),readfile)
+                    if rtype in ['hifi']:
+                        maprun = '{0} -t {1} --secondary=no -o {2}.sam -L -ax asm20 {4} {5}'.format(paf.getStr('Minimap2'),self.threads(),prefix,rtype,self.getStr('SeqIn'),readfile)
+                    logline = self.loggedSysCall(maprun,maplog,append=False)
+                    #!# Add check that run has finished #!#
+                    ## ~ [2b] Converting SAM to BAM ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                    #sam2bam = 'samtools view -bo {0}.tmp.bam -@ {1} -S {2}.sam'.format(prefix,self.threads()-1,prefix)
+                    self.printLog('#BAM','Converting SAM to BAM. Using a single thread due to past issues of missing data.')
+                    sam2bam = 'samtools view -bo {0}.tmp.bam -S {1}.sam'.format(prefix,prefix)
+                    logline = self.loggedSysCall(sam2bam,maplog,append=True,nologline='No stdout from sam2bam')
+                    #!# Add check that run has finished #!#
+                    ## ~ [2c] Sorting BAM ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+                    self.printLog('#BAM','Sorting BAM file.')
+                    sortbam = '{0}.bam'.format(prefix)
+                    bamsort = 'samtools sort -@ {0} -o {1}.bam -m 6G {2}.tmp.bam'.format(self.threads()-1,prefix,prefix)
+                    logline = self.loggedSysCall(bamsort,maplog,append=True)
+                    #!# Add check that run has finished #!#
+                    if not rje.exists(sortbam): raise IOError('Sorted BAM file "%s" not generated' % sortbam)
+                    os.unlink('{0}.sam'.format(prefix))
+                    os.unlink('{0}.tmp.bam'.format(prefix))
+                    bamlist.append(sortbam)
+
+            ### ~ [3] ~ Merge individual BAM files ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+                if len(bamlist) > 1:
+                    # samtools merge - merges multiple sorted input files into a single output.
+                    bammerge = 'samtools merge -@ {0} {1} {2}'.format(self.threads()-1,bamfile,' '.join(bamlist))
+                    logline = self.loggedSysCall(bammerge,append=True)
+                    if not rje.exists(bamfile): raise IOError('Merged BAM file "%s" not generated' % bamfile)
+                    for sortbam in bamlist: os.unlink(sortbam)
+                else: os.rename(bamlist[0],bamfile)
+
+            ## ~ [3a] Index ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            baifile = '{0}.bai'.format(bamfile)
+            rje.checkForFiles(filelist=[bamfile,baifile],basename='',log=self.log,cutshort=False,ioerror=False)
+            if self.needToRemake(baifile,bamfile):
+                makebai = 'samtools index -b {0} {1}.bai'.format(bamfile,bamfile)
+                logline = self.loggedSysCall(makebai,append=True)
+                #os.system('samtools index -b {0} {1}.bai'.format(bamfile,bamfile))
+
+            return bamfile
+        except:
+            self.errorLog('PAF.longreadMinimapBAM() error')
+            return None
+#########################################################################################################################
+    ### <9> ### Read coverage position checking                                                                         #
+#########################################################################################################################
+    def checkPos(self,save=True):  ### Checks read coverage spanning given positions
+        '''
+        Checks read coverage spanning given positions.
+        >> returns table of checked positions
+        '''
+        try:### ~ [1] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            forker = self.obj['Forker']
+            ## ~ [1a] ~ Setup basefile and PAF file ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            if not self.getStrLC('Basefile'): self.baseFile(rje.baseFile(self.getStr('PAFIn'),strip_path=True))
+            if not self.getStrLC('Basefile'): self.baseFile(rje.baseFile(self.getStr('SeqIn'),strip_path=True))
+            basefile = self.baseFile()
+            self.printLog('#BASE',self.baseFile())
+            db = self.obj['DB'] = rje_db.Database(self.log,self.cmd_list+['tuplekeys=T','basefile=%s' % self.baseFile()])
+            if self.getStrLC('PAFIn') in ['minimap','minimap2']:
+                self.setStr({'PAFIn':'%s.paf' % self.baseFile()})
+                self.printLog('#PAFIN','Minimap2 PAF file set: %s' % self.getStr('PAFIn'))
+            ## ~ [1b] ~ Setup coverage check table ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            covflanks = self.list['CheckFlanks']
+            if not len(self.list['CheckFields']) == 3:
+                raise ValueError('checkfields=LIST must have exactly 3 elements: Locus, Start, End. %d found!' % len(self.list['CheckFields']))
+            [locusfield,startfield,endfield] = self.list['CheckFields']
+            #cdb = db.addTable(self.getStr('CheckPos'),mainkeys=self.list['CheckFields'],name='check',expect=True)
+            cdb = db.addTable(self.getStr('CheckPos'),mainkeys='auto',name='check',expect=True)
+            cdb.dataFormat({startfield:'int',endfield:'int'})
+            cdb.compress(self.list['CheckFields'],rules={self.getStr('SpanID'):'list'})
+            cdb.setStr({'Delimit':'\t'})
+            cdb.addField('MaxFlank5',evalue=-1)
+            cdb.addField('MaxFlank3',evalue=-1)
+            for covx in covflanks: cdb.addField('Span%d' % covx,evalue=0)
+            ## ~ [1c] Temp directory for forked depths ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            tmpdir = rje.makePath(self.getStr('TmpDir'),wholepath=False)
+            if not rje.exists(tmpdir): rje.mkDir(self,tmpdir)
+            ## ~ [1d] Output directory for SpanID reads ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            iddir = '%s_spanid/' % basefile
+            if self.getStrLC('SpanID'):
+                if not rje.exists(iddir): rje.mkDir(self,iddir)
+
+
+            ### ~ [2] ~ Check/Generate PAF file ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            paffile = self.longreadMinimapPAF()
+            if not paffile: raise IOError('PAF file "{0}" not found'.format(paffile))
+
+            ### ~ [3] ~ Fork out checking of positions using PAF file and awk ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            ## ~ [3a] Setup forking ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            cleanup = 0; skipped = 0
+            forker.list['ToFork'] = []
+            for centry in cdb.entries():
+                locus = centry[locusfield]
+                cstart = centry[startfield]
+                cend = centry[endfield]
+                tmpfile = '{0}{1}.{2}.{3}.{4}.tmp'.format(tmpdir,basefile,locus,cstart,cend)
+                if rje.exists(tmpfile):
+                    if not self.force() and len(open(tmpfile,'r').readline().split()) > 1: skipped += 1; continue
+                    else: os.unlink(tmpfile); cleanup += 1
+                #i# NOTE: PAF positions are 0-based, so need to subtract 1
+                forker.list['ToFork'].append("awk -F '\\t' '$6==\"{0}\" && $8<={1} && $9>={2}' {3} > {4} && echo 'awk complete' >> {5}".format(locus,int(cstart)-1,int(cend)-1,paffile,tmpfile,tmpfile))
+                self.bugPrint(forker.list['ToFork'][-1])
+            self.printLog('#CHECK','{0} Coverage check regions queued for forking ({1} existing files deleted); {2} existing results skipped'.format(rje.iLen(forker.list['ToFork']),rje.iStr(cleanup),rje.iStr(skipped)))
+            ## ~ [3b] Fork out depth analysis ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            if forker.list['ToFork']:
+                if self.getNum('Forks') < 1:
+                    #i# Warn lack of forking
+                    self.printLog('#FORK','Note: program can be accelerated using forks=INT.')
+                    for forkcmd in forker.list['ToFork']:
+                        self.printLog('#SYS',forkcmd)
+                        os.system(forkcmd)
+                elif forker.run():
+                    self.printLog('#FORK','Forking of coverage analysis completed.')
+                else:
+                    try:
+                        self.errorLog('Coverage forking did not complete',printerror=False,quitchoice=True)
+                    except:
+                        raise RuntimeError('Coverage forking did not complete')
+
+            ### ~ [4] Read in and process coverage calculations ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+            # pafhead = string.split('Qry QryLen QryStart QryEnd Strand Hit SbjLen SbjStart SbjEnd Identity Length Quality')
+            #!# Need to add read lists for each contaminant #!#
+            ## ~ [4a] Load data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            cx = 0.0; ctot = cdb.entryNum(); spanid = {}
+            for centry in cdb.entries():
+                self.progLog('\r#CHECK','Processing checkpos coverage: %.2f%%' % (cx/ctot)); cx += 100.0
+                locus = centry[locusfield]
+                cstart = centry[startfield]
+                cend = centry[endfield]
+                centry['MaxFlank5'] = cstart - 1
+                tmpfile = '{0}{1}.{2}.{3}.{4}.tmp'.format(tmpdir,basefile,locus,cstart,cend)
+                try:
+                    if not rje.exists(tmpfile):
+                        raise IOError('Cannot find {0}'.format(tmpfile))
+                    self.quiet()
+                    pafdb = self.parsePAF(tmpfile,'tmp')
+                    self.talk()
+                    for pentry in pafdb.entries():
+                        if pentry['Hit'] != locus: raise ValueError('Hit sequence mismatch for "%s"' % tmpfile)
+                        centry['MaxFlank3'] = pentry['SbjLen'] - centry[endfield]
+                        for covx in covflanks:
+                            if pentry['SbjStart'] <= max(1,centry[startfield]-covx) and pentry['SbjEnd'] >= min(pentry['SbjLen'],centry[endfield]+covx):
+                                centry['Span%d' % covx] += 1
+                    if self.getStrLC('SpanID'):
+                        idlist = pafdb.dataList(pafdb.entries(),'Qry',sortunique=False,empties=False)
+                        for spanner in centry[self.getStr('SpanID')].split('|'):
+                            if spanner not in spanid: spanid[spanner] = []
+                            spanid[spanner] += idlist
+                    db.deleteTable(pafdb)
+                except:
+                    self.talk()
+                    self.errorLog('Coverage result processing error',quitchoice=True)
+                    continue
+            self.printLog('\r#CHECK','Processing checkpos coverage complete!')
+            ## ~ [4b] Save and tidy data ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            if save: cdb.saveToFile()
+            if not self.debugging() and not self.dev():
+                tx = 0
+                for centry in cdb.entries():
+                    locus = centry[locusfield]
+                    cstart = centry[startfield]
+                    cend = centry[endfield]
+                    tmpfile = '{0}{1}.{2}.{3}.{4}.tmp'.format(tmpdir,basefile,locus,cstart,cend)
+                    os.unlink(tmpfile); tx += 1
+                self.printLog('#TMP','%s temp files deleted' % rje.iStr(tx))
+            ## ~ [4c] Save spanning read IDs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+            if self.getStrLC('SpanID'):
+                nonx = 0; idx = 0
+                for spanner in rje.sortKeys(spanid):
+                    if not spanid[spanner]:
+                        nonx += 1
+                        if self.v() > 0: self.printLog('#SPANID','No %s spanning read IDs to output.' % (spanner))
+                        continue
+                    spout = '%s%s.%s.span.id' % (iddir,basefile,spanner)
+                    spids = rje.sortUnique(spanid[spanner])
+                    open(spout,'w').write('\n'.join(spids+['']))
+                    self.printLog('#SPANID','%s %s spanning read IDs output to %s' % (rje.iLen(spids),spanner,spout))
+                    idx += 1
+                self.printLog('#SPANID','%s regions with spanning read IDs output to %s.' % (rje.iStr(idx),iddir))
+                self.printLog('#SPANID','%s regions without spanning read IDs to output.' % (rje.iStr(nonx)))
+            return cdb
+
+        except: self.errorLog('Problem during %s checkPos().' % self.prog()); return False  # Setup failed
 #########################################################################################################################
 ### End of SECTION II: PAF Class                                                                                        #
 #########################################################################################################################

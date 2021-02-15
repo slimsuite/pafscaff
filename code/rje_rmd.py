@@ -19,8 +19,8 @@
 """
 Module:       rje_rmd
 Description:  R Markdown generation and execution module
-Version:      0.0.0
-Last Edit:    05/02/19
+Version:      0.1.0
+Last Edit:    01/02/21
 Copyright (C) 2019  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -34,6 +34,10 @@ Function:
     rather than HTML.
 
     NOTE: Running the above generates a `*.html` file in the same place as the `*.Rmd` file (not the run directory).
+
+    NOTE: For HTML output, R must be installed and a pandoc environment variable must be set, e.g.
+
+        export RSTUDIO_PANDOC=/Applications/RStudio.app/Contents/MacOS/pandoc
 
 Commandline:
 
@@ -52,6 +56,7 @@ import rje, rje_obj
 def history():  ### Program History - only a method for PythonWin collapsing! ###
     '''
     # 0.0.0 - Initial Compilation.
+    # 0.1.0 - Added docHTML.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -68,7 +73,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('RJE_Rmd', '0.0.0', 'February 2019', '2019')
+    (program, version, last_edit, copy_right) = ('RJE_Rmd', '0.1.0', 'January 2021', '2019')
     description = 'R Markdown generation and execution module'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -381,6 +386,25 @@ class Rmd(rje_obj.RJE_Object):
 
 #########################################################################################################################
 ### SECTION III: MODULE METHODS                                                                                         #
+#########################################################################################################################
+def docHTML(self):  ### Generate Rmd and HTML documents from main run() method docstring.
+    '''Generate Rmd and HTML documents from main run() method docstring.'''
+    try:### ~ [1] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
+        info = self.log.obj['Info']
+        if not self.getStrLC('Basefile'): self.baseFile(info.program.lower())
+        prog = '%s V%s' % (info.program,info.version)
+        rmd = Rmd(self.log,self.cmd_list)
+        rtxt = rmd.rmdHead(title='%s Documentation' % prog,author='Richard J. Edwards',setup=True)
+        #!# Replace this with documentation text?
+        rtxt += string.replace(self.run.__doc__,'\n        ','\n')
+        rtxt += '\n\n<br>\n<small>&copy; 2021 Richard Edwards | richard.edwards@unsw.edu.au</small>\n'
+        rmdfile = '%s.docs.Rmd' % self.baseFile()
+        open(rmdfile,'w').write(rtxt)
+        self.printLog('#RMD','RMarkdown %s documentation output to %s' % (prog,rmdfile))
+        rmd.rmdKnit(rmdfile)
+    except:
+        self.errorLog(self.zen())
+        raise   # Delete this if method error not terrible
 #########################################################################################################################
 headTest = '''---
 title: "RJE_RMD"
