@@ -19,8 +19,8 @@
 """
 Module:       PAFScaff
 Description:  Pairwise mApping Format reference-based scaffold anchoring and super-scaffolding.
-Version:      0.4.1
-Last Edit:    25/08/20
+Version:      0.4.2
+Last Edit:    21/04/21
 Citation:     Field et al. (2020), GigaScience 9(4):giaa027. [PMID: 32236524]
 GitHub:       https://github.com/slimsuite/pafscaff
 Copyright (C) 2019  Richard J. Edwards - See source code for GNU License Notice
@@ -108,6 +108,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.3.0 - Added pagsat=T/F : Whether to output sequence names in special PAGSAT-compatible format [False]
     # 0.4.0 - Added purity criteria for more stringent assignment to chromosomes.
     # 0.4.1 - Fixed some issues with ambiguous scaffold output.
+    # 0.4.2 - Unplaced scaffold output bug fix for GitHub issue#2.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -125,11 +126,12 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
     # [Y] : Add option to name scaffolds in Size order (scaffold=T), or Start Position (scaffold=F)
     # [ ] : Add option to mask ends of sequences prior to scaffolding using KAT self-kmers.
     # [ ] : Finish the dochtml information.
+    # [ ] : Need to tidy the output code to make it clearer and more consistent.
     '''
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('PAFScaff', '0.4.1', 'August 2020', '2019')
+    (program, version, last_edit, copy_right) = ('PAFScaff', '0.4.2', 'April 2021', '2019')
     description = 'Pairwise mApping Format reference-based scaffold anchoring and super-scaffolding'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -718,9 +720,17 @@ class PAFScaff(rje_obj.RJE_Object):
                     ux += 1
                     scaffnum[sname] = ux
                     scaffseq.append(sname)
+            umax = ux; missx = 0
             #i# Output scaffolds
             aseq = assembly.nextSeq()
-            if scaffnum: aseq = assembly.getSeq(seqdict[scaffseq.pop(0)],'tuple')
+            if scaffnum:
+                if len(scaffnum) != len(scaffseq): raise ValueError('Sorted unplaced scaffold number mismatch')
+                self.printLog('#SORT','{0} sorted unplaced scaffolds for output'.format(rje.iLen(scaffseq)))
+                aseq = assembly.getSeq(seqdict[scaffseq.pop(0)],'tuple')
+            elif self.getBool('Sorted'):
+                self.printLog('#SORT','Generating unplaced scaffold output without sorting.'.format(rje.iLen(scaffseq)))
+            else:
+                self.printLog('#SORT','Generating unsorted scaffold output.'.format(rje.iLen(scaffseq)))
             while aseq:
                 if self.getBool('Sorted'):
                     self.progLog('#OUT','Unplaced scaffold output...')
@@ -729,10 +739,12 @@ class PAFScaff(rje_obj.RJE_Object):
                 sname = string.split(aname)[0]
                 ambentry = pafdb.data(sname)
                 if sname not in pafdb.index('Scaffold') or pafdb.indexEntries('Scaffold',sname)[0]['RefMap'] == 'Ambiguous':
-                    #UFILE.write(assembly.fasta[aseq])
-                    #ux += 1
-                    ux = scaffnum[sname]
                     if self.getStrLC('Unplaced') or self.getBool('PAGSAT'):
+                        try: ux = scaffnum[sname]
+                        except:
+                            missx += 1
+                            umax += 1
+                            ux = umax
                         newname = '%s%s' % (self.getStr('Unplaced'),rje.preZero(ux,assembly.seqNum()))
                         if self.getBool('PAGSAT'):
                             newname = '%sUn.%s_%s__%s' %  (self.getStr('NewChr'),rje.preZero(ux,assembly.seqNum()),self.getStr('SpCode'),newname)
@@ -766,6 +778,7 @@ class PAFScaff(rje_obj.RJE_Object):
             self.printLog('#OUT','%s placed scaffolds output to: %s' % (rje.iStr(px),pfile))
             UFILE.close()
             self.printLog('#OUT','%s unplaced scaffolds output to: %s' % (rje.iStr(ux),ufile))
+            if missx: self.warnLog('{0} scaffolds somehow escaped sorting. See GitHub issue #2 for details. This should only affect output order in fasta files.'.format(rje.iStr(missx)))
             ## ~ [4b] Add sequence summary of assigned sequences ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             if anchored: rje_seqlist.SeqList(self.log,self.cmd_list+['seqin=%s' % afile,'seqmode=file','summarise','dna','autoload'])
             if px: rje_seqlist.SeqList(self.log,self.cmd_list+['seqin=%s' % pfile,'seqmode=file','summarise','dna','autoload'])

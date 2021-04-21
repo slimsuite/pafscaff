@@ -787,6 +787,7 @@ class Table(rje.RJE_Object):
         >> keylist:list [] = List of key values to join with delimiter or convert to tuple
         >> expect:bool [False] = Whether to raise exception if missing, else return None.
         '''
+        if not key and key not in [None, False]: return None
         if not (key or makekey or keylist): return self.dict['Data']
         try:
             if key: return self.dict['Data'][key]
@@ -1243,6 +1244,7 @@ class Table(rje.RJE_Object):
             if log: self.progLog('\r#SAVE','Saving table "%s"...' % (self.info['Name']))
             if append and rje.exists(filename): OUT = open(filename,'a')
             else:
+                append = False
                 OUT = open(filename,'w')
                 if comments:
                     hashwarn = 0
@@ -1276,7 +1278,9 @@ class Table(rje.RJE_Object):
                 OUT.write('%s\n' % string.join(outlist,delimit)); sx += 1
             OUT.close()
             if log:
-                if sx: self.printLog('\r#SAVE','Table "%s" saved to "%s": %s entries.' % (self.info['Name'],filename,rje.iStr(sx)))
+                if sx and append: self.printLog('\r#SAVE','Table "%s" appended to "%s": %s entries.' % (self.info['Name'],filename,rje.iStr(sx)))
+                elif sx: self.printLog('\r#SAVE','Table "%s" saved to "%s": %s entries.' % (self.info['Name'],filename,rje.iStr(sx)))
+                elif append: self.printLog('\r#SAVE','No Table "%s" entries to append to "%s".' % (self.info['Name'],filename))
                 else: self.printLog('\r#SAVE','Table "%s" saved to "%s": headers only.' % (self.info['Name'],filename))
             return filename
         except: self.errorLog('Problem saving table "%s" to "%s"' % (self.info['Name'],filename))
@@ -1843,6 +1847,9 @@ class Table(rje.RJE_Object):
         except:
             self.errorLog('DropEntry error!')
 #########################################################################################################################
+    def dropEntryList(self,entries,inverse=False,log=True,logtxt=''): return self.dropEntries(entries,inverse,log,logtxt,purelist=True)
+    def dropEntriesFromKeys(self,keys,inverse=False,log=True,logtxt=''): return self.dropEntries(entries,inverse,log,logtxt,keylist=True)
+#########################################################################################################################
     def dropEntries(self,filters,inverse=False,log=True,logtxt='',purelist=False,keylist=False):    ### Drops certain entries from Table
         '''
         Drops certain entries from Table.
@@ -2002,7 +2009,7 @@ class Table(rje.RJE_Object):
                             else: entry[field] = False
                     except:
                         fx += 1
-                        self.deBug('%s "%s" - %s?' % (field,entry[field],self.dict['DataTypes'][field]))
+                        #x#self.deBug('%s "%s" - %s?' % (field,entry[field],self.dict['DataTypes'][field]))
                 if rekey:
                     newkey = self.makeKey(entry)
                     self.dict['Data'][newkey] = self.dict['Data'].pop(oldkey)
