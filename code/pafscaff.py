@@ -19,8 +19,8 @@
 """
 Module:       PAFScaff
 Description:  Pairwise mApping Format reference-based scaffold anchoring and super-scaffolding.
-Version:      0.4.2
-Last Edit:    21/04/21
+Version:      0.4.3
+Last Edit:    26/11/21
 Citation:     Field et al. (2020), GigaScience 9(4):giaa027. [PMID: 32236524]
 GitHub:       https://github.com/slimsuite/pafscaff
 Copyright (C) 2019  Richard J. Edwards - See source code for GNU License Notice
@@ -109,6 +109,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.4.0 - Added purity criteria for more stringent assignment to chromosomes.
     # 0.4.1 - Fixed some issues with ambiguous scaffold output.
     # 0.4.2 - Unplaced scaffold output bug fix for GitHub issue#2.
+    # 0.4.3 - Fixed the descriptions for Unplaced scaffolds in the summary table.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -131,7 +132,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('PAFScaff', '0.4.2', 'April 2021', '2019')
+    (program, version, last_edit, copy_right) = ('PAFScaff', '0.4.3', 'November 2021', '2019')
     description = 'Pairwise mApping Format reference-based scaffold anchoring and super-scaffolding'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -737,6 +738,7 @@ class PAFScaff(rje_obj.RJE_Object):
                 else: self.progLog('#OUT','Unsorted scaffold output...')
                 (aname,sequence) = aseq
                 sname = string.split(aname)[0]
+                sdesc = string.split(aname,maxsplit=1)[1]
                 ambentry = pafdb.data(sname)
                 if sname not in pafdb.index('Scaffold') or pafdb.indexEntries('Scaffold',sname)[0]['RefMap'] == 'Ambiguous':
                     if self.getStrLC('Unplaced') or self.getBool('PAGSAT'):
@@ -754,10 +756,10 @@ class PAFScaff(rje_obj.RJE_Object):
                         if ambentry:
                             ambentry['Qry'] = newname
                             pafdb.dict['Data'][newname] = pafdb.dict['Data'].pop(sname)
-                        else: pafdb.addEntry({'Qry':newname,'Scaffold':aname,'RefMap':'Unplaced','QryLen':len(sequence)})
+                        else: pafdb.addEntry({'Qry':newname,'Scaffold':sname,'Description':sdesc,'RefMap':'Unplaced','QryLen':len(sequence)})
                     else:
                         UFILE.write('>%s\n%s\n' % (aname,sequence))
-                        if not ambentry: pafdb.addEntry({'Qry':aname,'Scaffold':aname,'RefMap':'Unplaced','QryLen':len(sequence)})
+                        if not ambentry: pafdb.addEntry({'Qry':aname,'Scaffold':sname,'Description':sdesc,'RefMap':'Unplaced','QryLen':len(sequence)})
                 elif not self.getBool('Sorted'):
                     entry = pafdb.indexEntries('Scaffold',sname)[0]
                     if revcomp and entry['Strand'] == '-': sequence = rje_sequence.reverseComplement(sequence)

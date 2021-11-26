@@ -1,7 +1,7 @@
 # PAFScaff: Pairwise mApping Format reference-based scaffold anchoring and super-scaffolding
 
 ```
-PAFScaff v0.4.2
+PAFScaff v0.4.3
 ```
 
 For a better rendering and navigation of this document, please download and open [`./docs/pafscaff.docs.html`](./docs/pafscaff.docs.html), or visit <https://slimsuite.github.io/pafscaff/>.
