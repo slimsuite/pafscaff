@@ -2595,10 +2595,12 @@ class PAF(rje_obj.RJE_Object):
 #########################################################################################################################
     ### <9> ### Read coverage position checking                                                                         #
 #########################################################################################################################
-    def checkPos(self,save=True):  ### Checks read coverage spanning given positions
+    def checkPos(self,save=True,cdb=None):  ### Checks read coverage spanning given positions
         '''
         Checks read coverage spanning given positions.
-        >> returns table of checked positions
+        >> save:bool [True] = Whether to save table
+        >> cdb:Table [None] = Existing table with self.list['CheckFields'] fields for checking.
+        << returns table of checked positions
         '''
         try:### ~ [1] ~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             forker = self.obj['Forker']
@@ -2607,7 +2609,9 @@ class PAF(rje_obj.RJE_Object):
             if not self.getStrLC('Basefile'): self.baseFile(rje.baseFile(self.getStr('SeqIn'),strip_path=True))
             basefile = self.baseFile()
             self.printLog('#BASE',self.baseFile())
-            db = self.obj['DB'] = rje_db.Database(self.log,self.cmd_list+['tuplekeys=T','basefile=%s' % self.baseFile()])
+            db = self.db()
+            if not db:
+                db = self.obj['DB'] = rje_db.Database(self.log,self.cmd_list+['tuplekeys=T','basefile=%s' % self.baseFile()])
             if self.getStrLC('PAFIn') in ['minimap','minimap2']:
                 self.setStr({'PAFIn':'%s.paf' % self.baseFile()})
                 self.printLog('#PAFIN','Minimap2 PAF file set: %s' % self.getStr('PAFIn'))
@@ -2617,7 +2621,8 @@ class PAF(rje_obj.RJE_Object):
                 raise ValueError('checkfields=LIST must have exactly 3 elements: Locus, Start, End. %d found!' % len(self.list['CheckFields']))
             [locusfield,startfield,endfield] = self.list['CheckFields']
             #cdb = db.addTable(self.getStr('CheckPos'),mainkeys=self.list['CheckFields'],name='check',expect=True)
-            cdb = db.addTable(self.getStr('CheckPos'),mainkeys='auto',name='check',expect=True)
+            if not cdb:
+                cdb = db.addTable(self.getStr('CheckPos'),mainkeys='auto',name='check',expect=True)
             cdb.dataFormat({startfield:'int',endfield:'int'})
             cdb.compress(self.list['CheckFields'],rules={self.getStr('SpanID'):'list'})
             cdb.setStr({'Delimit':'\t'})

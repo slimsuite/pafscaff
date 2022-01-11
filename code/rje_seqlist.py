@@ -3264,7 +3264,7 @@ class SeqList(rje_obj.RJE_Object):
                 #i# Middle of sequence contig
                 else:
                     centry = {'seqname':entry['seqname'],'start':prev['end']+1,'end':entry['start'] - 1}
-                    centry['ctglen'] = centry['start'] - centry['start'] + 1
+                    centry['ctglen'] = centry['end'] - centry['start'] + 1
                     cdb.addEntry(centry)
                     #self.bugPrint('-> Mid contig: %s' % (cdb.entrySummary(centry,collapse=True)))
             prev = entry

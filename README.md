@@ -1,7 +1,7 @@
 # PAFScaff: Pairwise mApping Format reference-based scaffold anchoring and super-scaffolding
 
 ```
-PAFScaff v0.4.3
+PAFScaff v0.5.0
 ```
 
 For a better rendering and navigation of this document, please download and open [`./docs/pafscaff.docs.html`](./docs/pafscaff.docs.html), or visit <https://slimsuite.github.io/pafscaff/>.
@@ -72,6 +72,7 @@ assembly=FASFILE: As seqin=FASFILE
 refprefix=X     : Reference chromosome prefix. If None, will used all $REFERENCE scaffolds [None]
 newprefix=X     : Assembly chromosome prefix. If None, will not rename $ASSEMBLY scaffolds [None]
 unplaced=X      : Unplaced scaffold prefix. If None, will not rename unplaced $ASSEMBLY scaffolds [None]
+ctgprefix=X     : Unplaced contig prefix. Replaces unplaced=X when 0 gaps. [None]
 sorted=X        : Criterion for $ASSEMBLY scaffold sorting (QryLen/Coverage/RefStart/None) [QryLen]
 minmap=PERC     : Minimum percentage mapping to a chromosome for assignment [0.0]
 minpurity=PERC  : Minimum percentage "purity" for assignment to Ref chromosome [50.0]
@@ -185,6 +186,9 @@ where:
 * `START:END` = start and end positions on reference chromosome of query mapping.
 * `INV% REF(INVSTRAND)` = percentage mapped onto inverse strand of reference chromosome. (Omitted if 0%.)
 * `OTHER%` = percentage mapped onto other reference chromosome. (Omitted if 0%.)
+
+Unplaced sequences will either not be renamed, or will have a different prefix if `unplaced=X` is set. If
+`ctgprefix=X` is also set, any unplaced sequences without gaps will have a different prefix set by `ctgprefix=X`.
 
 ### Output
 
