@@ -1,7 +1,7 @@
 # PAFScaff: Pairwise mApping Format reference-based scaffold anchoring and super-scaffolding
 
 ```
-PAFScaff v0.5.0
+PAFScaff v0.6.1
 ```
 
 For a better rendering and navigation of this document, please download and open [`./docs/pafscaff.docs.html`](./docs/pafscaff.docs.html), or visit <https://slimsuite.github.io/pafscaff/>.
@@ -64,12 +64,14 @@ use commandline options, including setting default values with **INI files**.
 
 ```
 ### ~ Input/Output options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
-pafin=PAFFILE   : PAF generated from $REFERENCE $ASSEMBLY mapping; or run minimap2 [minimap2]
+pafin=PAFFILE   : PAF generated from $REFERENCE $ASSEMBLY mapping; or run minimap2, or use busco [minimap2]
 basefile=STR    : Base for file outputs [PAFIN basefile]
 seqin=FASFILE   : Input genome assembly to map/scaffold onto $REFERENCE (minimap2 $ASSEMBLY) []
 reference=FILE  : Fasta (with accession numbers matching Locus IDs) ($REFERENCE) []
 assembly=FASFILE: As seqin=FASFILE
-refprefix=X     : Reference chromosome prefix. If None, will used all $REFERENCE scaffolds [None]
+busco=TSVFILE   : BUSCO v5 full table (pafin=busco) [full_table_$BASEFILE.busco.tsv]
+refbusco=TSVFILE: Reference BUSCO v5 full table [full_table_$REFBASE.busco.tsv]
+refprefix=X     : Reference chromosome prefix. If None, will use all $REFERENCE scaffolds [None]
 newprefix=X     : Assembly chromosome prefix. If None, will not rename $ASSEMBLY scaffolds [None]
 unplaced=X      : Unplaced scaffold prefix. If None, will not rename unplaced $ASSEMBLY scaffolds [None]
 ctgprefix=X     : Unplaced contig prefix. Replaces unplaced=X when 0 gaps. [None]
@@ -87,6 +89,7 @@ minimap2=PROG   : Full path to run minimap2 [minimap2]
 mmsecnum=INT    : Max. number of secondary alignments to keep (minimap2 -N) [0]
 mmpcut=NUM      : Minimap2 Minimal secondary-to-primary score ratio to output secondary mappings (minimap2 -p) [0]
 mapopt=CDICT    : Dictionary of additional minimap2 options to apply (caution: over-rides conflicting settings) []
+purebusco=T/F   : Whether to keep BUSCO genes separate rather than generating synteny blocks [False]
 ### ~ Processing options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
 forks=X         : Number of parallel sequences to process at once [0]
 killforks=X     : Number of seconds of no activity before killing all remaining forks. [36000]

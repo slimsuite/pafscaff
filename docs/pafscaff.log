@@ -1,6 +1,7 @@
 #~~#	#~+~~+~#	#~~#
-#LOG	00:00:00	Activity Log for PAFScaff V0.5.0: Wed Jan 12 08:50:22 2022
-#DIR	00:00:00	Run from directory: /Users/redwards/OneDrive - UNSW/code/pafscaff/docs
+#LOG	00:00:00	Activity Log for PAFScaff V0.6.1: Wed Feb 22 22:07:03 2023
+#WARN	00:00:00	Python 3.x detected but not fully supported. Please report odd behaviour.
+#DIR	00:00:00	Run from directory: /Users/redwards/Library/CloudStorage/OneDrive-UNSW/code/pafscaff/docs
 #ARG	00:00:00	Commandline arguments: dochtml newlog
 #CMD	00:00:00	Full Command List: log=pafscaff.log dochtml newlog
 #VIO	00:00:00	Verbosity: 1; Interactivity: 0.
@@ -10,4 +11,5 @@
 #RMD	00:00:00	RMarkdown PAFScaff documentation output to pafscaff.docs.Rmd
 #RCMD	00:00:00	Rscript -e 'library(rmarkdown); rmarkdown::render("pafscaff.docs.Rmd", "html_document")'
 #RCMD	00:00:00	pafscaff.docs.html generated from pafscaff.docs.Rmd
-#LOG	00:00:00	PAFScaff V0.5.0 End: Wed Jan 12 08:50:22 2022
+#WARN	00:00:00	1 warning messages: check log for details.
+#LOG	00:00:00	PAFScaff V0.6.1 End: Wed Feb 22 22:07:04 2023
