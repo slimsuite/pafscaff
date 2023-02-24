@@ -19,8 +19,8 @@
 """
 Module:       PAFScaff
 Description:  Pairwise mApping Format reference-based scaffold anchoring and super-scaffolding.
-Version:      0.6.1
-Last Edit:    02/02/22
+Version:      0.6.2
+Last Edit:    24/02/22
 Citation:     Field et al. (2020), GigaScience 9(4):giaa027. [PMID: 32236524]
 GitHub:       https://github.com/slimsuite/pafscaff
 Copyright (C) 2019  Richard J. Edwards - See source code for GNU License Notice
@@ -117,6 +117,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.5.0 - Added ctgprefix=X : Unplaced contig prefix. Replaces unplaced=X when 0 gaps. [None]
     # 0.6.0 - Added busco=TSV and refbusco=TSV as alternative to minimap2 linkages
     # 0.6.1 - Upgraded PAFScaff BUSCO mode to use Synteny blocks and not simply BUSCO genes.
+    # 0.6.2 - Py3 bug fixes.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -139,7 +140,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('PAFScaff', '0.6.1', 'February 2022', '2019')
+    (program, version, last_edit, copy_right) = ('PAFScaff', '0.6.2', 'February 2022', '2019')
     description = 'Pairwise mApping Format reference-based scaffold anchoring and super-scaffolding'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -720,7 +721,7 @@ class PAFScaff(rje_obj.RJE_Object):
                 for refchr in pafdb.index('Ref'):
                     if rje.matchExp('^%s(\d+)$' % refpref,refchr):
                         chr = rje.matchExp('^%s(\d+)$' % refpref,refchr)[0]
-                        conversion[refchr] = string.atoi(chr)
+                        conversion[refchr] = int(chr)
                     elif rje.matchExp('^%s(\S+)' % refpref,refchr):
                         chr = rje.matchExp('^%s(\S+)' % refpref,refchr)[0]
                         conversion[refchr] = chr

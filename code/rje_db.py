@@ -19,8 +19,8 @@
 """
 Module:       rje_db
 Description:  R Edwards Relational Database module
-Version:      1.10.0
-Last Edit:    21/08/20
+Version:      1.10.1
+Last Edit:    24/02/23
 Copyright (C) 2007  Richard J. Edwards - See source code for GNU License Notice
 
 Function:
@@ -84,6 +84,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 1.9.2 - Tweaked entrySummary - added collapse=True.
     # 1.9.3 - Added highest tied ranking.
     # 1.10.0 - Initial Python3 code conversion.
+    # 1.10.1 - Py3 bug fixing.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -102,7 +103,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo():     ### Makes Info object
     '''Makes rje.Info object for program.'''
-    (program, version, last_edit, copy_right) = ('RJE_DB', '1.10.0', 'August 2020', '2008')
+    (program, version, last_edit, copy_right) = ('RJE_DB', '1.10.1', 'February 2023', '2008')
     description = 'R Edwards Relational Database module'
     author = 'Dr Richard J. Edwards.'
     comments = ['Please report bugs to Richard.Edwards@UNSW.edu.au']
@@ -905,7 +906,7 @@ class Table(rje.RJE_Object):
             entry = newentry
             self.dict['Data'][ekey] = entry
         else: self.dict['Data'][ekey] = entry
-        for ikey in self.dict['Index'].keys():
+        for ikey in list(self.dict['Index'].keys()):
             try:
                 idata = entry[ikey]
                 if splitchar:
@@ -1837,7 +1838,7 @@ class Table(rje.RJE_Object):
                 return
             for ekey in self.dict['Data']:
                 if self.dict['Data'][ekey] == entry: break
-        for ikey in self.dict['Index'].keys():
+        for ikey in list(self.dict['Index'].keys()):
             try:
                 self.dict['Index'][ikey][entry[ikey]].remove(ekey)
                 if not self.dict['Index'][ikey][entry[ikey]]: self.dict['Index'][ikey].pop(entry[ikey])

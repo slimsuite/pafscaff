@@ -3147,7 +3147,7 @@ def sf(data,sf=3): ### Returns number rounded to X sf
     '''Returns number rounded to X sf.'''
     indata = data
     if not type(data) in [float,int]: data = float(data)
-    data = round(data, sf - math.floor(math.log10(abs(data))) - 1)
+    data = round(data, int(sf - math.floor(math.log10(abs(data))) - 1))
     if type(indata) == int: data = int(data)
     return data
 #########################################################################################################################
