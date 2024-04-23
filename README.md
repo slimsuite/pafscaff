@@ -1,7 +1,7 @@
 # PAFScaff: Pairwise mApping Format reference-based scaffold anchoring and super-scaffolding
 
 ```
-PAFScaff v0.6.2
+PAFScaff v0.6.3
 ```
 
 For a better rendering and navigation of this document, please download and open [`./docs/pafscaff.docs.html`](./docs/pafscaff.docs.html), or visit <https://slimsuite.github.io/pafscaff/>.
@@ -39,6 +39,15 @@ renamed and/or reverse-complemented if appropriate.
 
 **NOTE:** The precise ordering, orientation and naming of the output scaffolds depends on the settings for:
 `refprefix=X newprefix=X sorted=T/F revcomp=T/F`. See main documentation (below) for details.
+
+## Citing PAFScaff
+
+The main minimap-based PAFScaff approach has been published as part of the German Shepherd Dog genome paper:
+
+> Field MA, Rosen BD, Dudchenko O, Chan EKF, Minoche AM, Edwards RJ, Barton K, Lyons RJ, Enosi Tuipulotu D, Hayes VM, Omer AD, 
+Colaric Z, Keilwagen J, Skvortsova K, Bogdanovic O, Smith MA, Lieberman Aiden E, Smith TPL, Zammit RA & Ballard JWO (2020): 
+Canfam_GSD: De novo chromosome-length genome assembly of the German Shepherd Dog (Canis lupus familiaris) using a combination of 
+long reads, optical mapping, and Hi-C. GigaScience 9(4):giaa027. doi: [10.1093/gigascience/giaa027](https://doi.org/10.1093/gigascience/giaa027)
 
 ---
 

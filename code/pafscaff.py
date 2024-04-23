@@ -19,8 +19,8 @@
 """
 Module:       PAFScaff
 Description:  Pairwise mApping Format reference-based scaffold anchoring and super-scaffolding.
-Version:      0.6.2
-Last Edit:    24/02/22
+Version:      0.6.3
+Last Edit:    23/04/24
 Citation:     Field et al. (2020), GigaScience 9(4):giaa027. [PMID: 32236524]
 GitHub:       https://github.com/slimsuite/pafscaff
 Copyright (C) 2019  Richard J. Edwards - See source code for GNU License Notice
@@ -118,6 +118,7 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.6.0 - Added busco=TSV and refbusco=TSV as alternative to minimap2 linkages
     # 0.6.1 - Upgraded PAFScaff BUSCO mode to use Synteny blocks and not simply BUSCO genes.
     # 0.6.2 - Py3 bug fixes.
+    # 0.6.3 - Added citation to README and docs output.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -140,7 +141,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('PAFScaff', '0.6.2', 'February 2022', '2019')
+    (program, version, last_edit, copy_right) = ('PAFScaff', '0.6.3', 'April 2024', '2019')
     description = 'Pairwise mApping Format reference-based scaffold anchoring and super-scaffolding'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -343,6 +344,15 @@ class PAFScaff(rje_obj.RJE_Object):
         **NOTE:** The precise ordering, orientation and naming of the output scaffolds depends on the settings for:
         `refprefix=X newprefix=X sorted=T/F revcomp=T/F`. See main documentation (below) for details.
 
+        ## Citing PAFScaff
+
+        The main minimap-based PAFScaff approach has been published as part of the German Shepherd Dog genome paper:
+
+        > Field MA, Rosen BD, Dudchenko O, Chan EKF, Minoche AM, Edwards RJ, Barton K, Lyons RJ, Enosi Tuipulotu D, Hayes VM, Omer AD, 
+        Colaric Z, Keilwagen J, Skvortsova K, Bogdanovic O, Smith MA, Lieberman Aiden E, Smith TPL, Zammit RA & Ballard JWO (2020): 
+        Canfam_GSD: De novo chromosome-length genome assembly of the German Shepherd Dog (Canis lupus familiaris) using a combination of 
+        long reads, optical mapping, and Hi-C. GigaScience 9(4):giaa027. doi: [10.1093/gigascience/giaa027](https://doi.org/10.1093/gigascience/giaa027)
+        
         ---
 
         # Running PAFScaff

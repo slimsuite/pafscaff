@@ -1,7 +1,7 @@
 ---
 title: "PAFScaff Documentation"
 author: "Richard J. Edwards"
-date: "2023-02-24"
+date: "2024-04-23"
 output:
   html_document:
     css: http://www.slimsuite.unsw.edu.au/stylesheets/slimhtml.css
@@ -53,6 +53,15 @@ renamed and/or reverse-complemented if appropriate.
 
 **NOTE:** The precise ordering, orientation and naming of the output scaffolds depends on the settings for:
 `refprefix=X newprefix=X sorted=T/F revcomp=T/F`. See main documentation (below) for details.
+
+## Citing PAFScaff
+
+The main minimap-based PAFScaff approach has been published as part of the German Shepherd Dog genome paper:
+
+> Field MA, Rosen BD, Dudchenko O, Chan EKF, Minoche AM, Edwards RJ, Barton K, Lyons RJ, Enosi Tuipulotu D, Hayes VM, Omer AD, 
+Colaric Z, Keilwagen J, Skvortsova K, Bogdanovic O, Smith MA, Lieberman Aiden E, Smith TPL, Zammit RA & Ballard JWO (2020): 
+Canfam_GSD: De novo chromosome-length genome assembly of the German Shepherd Dog (Canis lupus familiaris) using a combination of 
+long reads, optical mapping, and Hi-C. GigaScience 9(4):giaa027. doi: [10.1093/gigascience/giaa027](https://doi.org/10.1093/gigascience/giaa027)
 
 ---
 
