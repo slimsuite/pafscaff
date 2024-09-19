@@ -19,8 +19,8 @@
 """
 Module:       PAFScaff
 Description:  Pairwise mApping Format reference-based scaffold anchoring and super-scaffolding.
-Version:      0.6.3
-Last Edit:    23/04/24
+Version:      0.7.1
+Last Edit:    15/09/24
 Citation:     Field et al. (2020), GigaScience 9(4):giaa027. [PMID: 32236524]
 GitHub:       https://github.com/slimsuite/pafscaff
 Copyright (C) 2019  Richard J. Edwards - See source code for GNU License Notice
@@ -72,6 +72,7 @@ Commandline:
     newprefix=X     : Assembly chromosome prefix. If None, will not rename $ASSEMBLY scaffolds [None]
     unplaced=X      : Unplaced scaffold prefix. If None, will not rename unplaced $ASSEMBLY scaffolds [None]
     ctgprefix=X     : Unplaced contig prefix. Replaces unplaced=X when 0 gaps. [None]
+    purechrom=T/F   : Whetheer to always output the first hit to any chromosome without the numerical suffix [False]
     sorted=X        : Criterion for $ASSEMBLY scaffold sorting (QryLen/Coverage/RefStart/None) [QryLen]
     minmap=PERC     : Minimum percentage mapping to a chromosome for assignment [0.0]
     minpurity=PERC  : Minimum percentage "purity" for assignment to Ref chromosome [50.0]
@@ -119,6 +120,8 @@ def history():  ### Program History - only a method for PythonWin collapsing! ##
     # 0.6.1 - Upgraded PAFScaff BUSCO mode to use Synteny blocks and not simply BUSCO genes.
     # 0.6.2 - Py3 bug fixes.
     # 0.6.3 - Added citation to README and docs output.
+    # 0.7.0 - Added purechrom=T/F : Whetheer to always output the first hit to any chromosome without the numerical suffix [False]
+    # 0.7.1 - Fixed Unplaced duplicated naming bug when renaming off PAFScaff outputs.
     '''
 #########################################################################################################################
 def todo():     ### Major Functionality to Add - only a method for PythonWin collapsing! ###
@@ -141,7 +144,7 @@ def todo():     ### Major Functionality to Add - only a method for PythonWin col
 #########################################################################################################################
 def makeInfo(): ### Makes Info object which stores program details, mainly for initial print to screen.
     '''Makes Info object which stores program details, mainly for initial print to screen.'''
-    (program, version, last_edit, copy_right) = ('PAFScaff', '0.6.3', 'April 2024', '2019')
+    (program, version, last_edit, copy_right) = ('PAFScaff', '0.7.1', 'September 2024', '2019')
     description = 'Pairwise mApping Format reference-based scaffold anchoring and super-scaffolding'
     author = 'Dr Richard J. Edwards.'
     comments = ['This program is still in development and has not been published.',rje_obj.zen()]
@@ -222,7 +225,8 @@ class PAFScaff(rje_obj.RJE_Object):
     - DocHTML=T/F     : Generate HTML PAFScaff documentation (*.info.html) instead of main run [False]
     - PAGSAT=T/F      : Whether to output sequence names in special PAGSAT-compatible format [False]
     - PureBUSCO=T/F   : Whether to keep BUSCO genes separate rather than generating synteny blocks [False]
-    - Scaffold=T/F    : Whether to "anchore" non-overlapping scaffolds by Coverage and then scaffold [True]
+    - PureChrom=T/F   : Whetheer to always output the first hit to any chromosome without the numerical suffix [False]
+    - Scaffold=T/F    : Whether to "anchor" non-overlapping scaffolds by Coverage and then scaffold [True]
     - Sorted=T/F      : Whether to sort $ASSEMBLY scaffold outputs [True]
     - RevComp=T/F     : Whether to reverse complement relevant scaffolds to maximise concordance [True]
 
@@ -253,7 +257,7 @@ class PAFScaff(rje_obj.RJE_Object):
         '''Sets Attributes of Object.'''
         ### ~ Basics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self.strlist = ['BUSCO','CtgPrefix','NewChr','NewPrefix','PAFIn','RefBUSCO','Reference','RefPrefix','SeqIn','Sorted','SpCode','Unplaced']
-        self.boollist = ['DocHTML','PAGSAT','PureBUSCO','RevComp','Scaffold','Sorted']
+        self.boollist = ['DocHTML','PAGSAT','PureBUSCO','PureChrom','RevComp','Scaffold','Sorted']
         self.intlist = ['MMSecNum']
         self.numlist = ['MinMap','MinPurity','MMPCut']
         self.filelist = []
@@ -263,7 +267,7 @@ class PAFScaff(rje_obj.RJE_Object):
         ### ~ Defaults ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
         self._setDefaults(str='None',bool=False,int=0,num=0.0,obj=None,setlist=True,setdict=True,setfile=True)
         self.setStr({'NewChr,':'ctg','PAFIn':'minimap2','Sorted':'QryLen','SpCode':'PAFSCAFF'})
-        self.setBool({'DocHTML':False,'PAGSAT':False,'PureBUSCO':False,'Scaffold':True,'Sorted':True,'RevComp':True})
+        self.setBool({'DocHTML':False,'PAGSAT':False,'PureBUSCO':False,'PureChrom':False,'Scaffold':True,'Sorted':True,'RevComp':True})
         self.setInt({'MMSecNum':0})
         self.setNum({'MMPCut':0.0,'MinMap':0.0,'MinPurity':50.0})
         ### ~ Other Attributes ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
@@ -285,7 +289,7 @@ class PAFScaff(rje_obj.RJE_Object):
                 #self._cmdReadList(cmd,'path',['Att'])  # String representing directory path 
                 self._cmdReadList(cmd,'file',['BUSCO','PAFIn','RefBUSCO','Reference','SeqIn'])  # String representing file path
                 #self._cmdReadList(cmd,'date',['Att'])  # String representing date YYYY-MM-DD
-                self._cmdReadList(cmd,'bool',['DocHTML','PAGSAT','PureBUSCO','RevComp','Scaffold'])  # True/False Booleans
+                self._cmdReadList(cmd,'bool',['DocHTML','PAGSAT','PureBUSCO','PureChrom','RevComp','Scaffold'])  # True/False Booleans
                 self._cmdReadList(cmd,'int',['MMSecNum'])   # Integers
                 self._cmdReadList(cmd,'float',['MMPCut']) # Floats
                 self._cmdReadList(cmd,'perc',['MinMap','MinPurity']) # Floats
@@ -388,6 +392,7 @@ class PAFScaff(rje_obj.RJE_Object):
         newprefix=X     : Assembly chromosome prefix. If None, will not rename $ASSEMBLY scaffolds [None]
         unplaced=X      : Unplaced scaffold prefix. If None, will not rename unplaced $ASSEMBLY scaffolds [None]
         ctgprefix=X     : Unplaced contig prefix. Replaces unplaced=X when 0 gaps. [None]
+        purechrom=T/F   : Whetheer to always output the first hit to any chromosome without the numerical suffix [False]
         sorted=X        : Criterion for $ASSEMBLY scaffold sorting (QryLen/Coverage/RefStart/None) [QryLen]
         minmap=PERC     : Minimum percentage mapping to a chromosome for assignment [0.0]
         minpurity=PERC  : Minimum percentage "purity" for assignment to Ref chromosome [50.0]
@@ -735,6 +740,13 @@ class PAFScaff(rje_obj.RJE_Object):
                     elif rje.matchExp('^%s(\S+)' % refpref,refchr):
                         chr = rje.matchExp('^%s(\S+)' % refpref,refchr)[0]
                         conversion[refchr] = chr
+                self.bugPrint('%s' % conversion)
+                if self.getBool('PureChrom'):
+                    self.printLog('#CHROM','Pure chromosome ID conversion.')
+                    for refchr in conversion.keys():
+                        if rje.matchExp('^(CHR\S+)\.\d+',conversion[refchr]):
+                            self.bugPrint('{0} -> {1}'.format(conversion[refchr], rje.matchExp('^(CHR\S+)\.\d+',conversion[refchr])[0]))
+                            conversion[refchr] = rje.matchExp('^(CHR\S+)\.\d+',conversion[refchr])[0]
                 pafdb.dropEntriesDirect('Ref',conversion.keys(),inverse=True)
                 for refchr in pafdb.index('Ref'):
                     for entry in pafdb.indexEntries('Ref',refchr): entry['Ref'] = conversion[refchr]
@@ -808,9 +820,12 @@ class PAFScaff(rje_obj.RJE_Object):
                 if revcomp and entry['Strand'] == '-': entry['Description'] = 'RevComp %s' % entry['Description']
                 if newpref and entry['RefMap'] != 'Ambiguous':
                     entry['Qry'] = '%s%s' % (newpref,entry['Ref'])
-                    refcount = len(pafdb.index('Ref',entry['Ref']))
-                    if refcount > 1 or self.getBool('PAGSAT'): entry['Qry'] = '%s.%s' % (entry['Qry'],rje.preZero(entry['RefN'],refcount))
-                    if self.getBool('PAGSAT'): entry['Qry'] = '%s%s.%s_%s__%s' % (self.getStr('NewChr'),entry['Ref'],rje.preZero(entry['RefN'],refcount),self.getStr('SpCode'),entry['Qry'])
+                    refcount = len(pafdb.indexEntries('Ref',entry['Ref']))
+                    if self.getBool('PAGSAT'): 
+                        entry['Qry'] = '%s.%s' % (entry['Qry'],rje.preZero(entry['RefN'],refcount))
+                        entry['Qry'] = '%s%s.%s_%s__%s' % (self.getStr('NewChr'),entry['Ref'],rje.preZero(entry['RefN'],refcount),self.getStr('SpCode'),entry['Qry'])
+                    if refcount > 1 and (entry['RefN'] > 1 or not self.getBool('PureChrom')): 
+                        entry['Qry'] = '%s.%s' % (entry['Qry'],rje.preZero(entry['RefN'],refcount))
                 self.printLog('#CHRMAP','%s: %s' % (entry['Qry'],entry['Description']))
             ## ~ [3a] Classify into anchored, placed, and unplaced ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
             #i# Anchored scaffolds are a special subset of placed scaffolds, which can be combined into a super-scaffold
@@ -853,7 +868,8 @@ class PAFScaff(rje_obj.RJE_Object):
 
             ### ~ [4] Output anchored, placed and unplaced assembly ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ###
             self.headLog('Output %s scaffolds' % basename)
-            pafdb.newKey(['Qry'])
+            pafdb.newKey(['Qry','Description'])
+            outputnames = []
             #!# Add option to update descriptions with more meaningful descriptions and species
             self.progLog('#OUT','Preparing fasta output...')
             assembly = self.obj['Assembly']
@@ -883,6 +899,7 @@ class PAFScaff(rje_obj.RJE_Object):
                     else:
                         PFILE.write('>%s %s\n%s\n' % (entry['Qry'],entry['Description'],sequence))
                         px += 1
+                    outputnames.append(entry['Qry'])
             #i# Sort scaffolds by length for output
             scaffnum = {}   # Dictionary of {sname:scaffnumber}
             scaffseq = []   # Sequences for scaffold output
@@ -929,8 +946,15 @@ class PAFScaff(rje_obj.RJE_Object):
                         if 'NNNNNNNNNN' in sequence.upper(): stype = 'scaffold'
                         if self.getStrLC('CtgPrefix') and stype == 'contig':
                             newname = '%s%s' % (self.getStr('CtgPrefix'),rje.preZero(ux,assembly.seqNum()))
+                            while newname in outputnames:
+                                umax += 1
+                                newname = '%s%s' % (self.getStr('CtgPrefix'),rje.preZero(umax,assembly.seqNum()))
                         else:
                             newname = '%s%s' % (self.getStr('Unplaced'),rje.preZero(ux,assembly.seqNum()))
+                            while newname in outputnames:
+                                umax += 1
+                                newname = '%s%s' % (self.getStr('Unplaced'),rje.preZero(umax,assembly.seqNum()))
+                        outputnames.append(newname)
                         if self.getBool('PAGSAT'):
                             newname = '%sUn.%s_%s__%s' %  (self.getStr('NewChr'),rje.preZero(ux,assembly.seqNum()),self.getStr('SpCode'),newname)
                         UFILE.write('>%s %s len=%s; Unplaced %s\n%s\n' % (newname,aname,rje_seqlist.dnaLen(len(sequence),dp=0,sf=4),stype,sequence))
@@ -950,6 +974,7 @@ class PAFScaff(rje_obj.RJE_Object):
                     else:
                         PFILE.write('>%s %s\n%s\n' % (entry['Qry'],entry['Description'],sequence))
                         px += 1
+                    outputnames.append(entry['Qry'])
                 if scaffnum:
                     if scaffseq: aseq = assembly.getSeq(seqdict[scaffseq.pop(0)],'tuple')
                     else: aseq = None

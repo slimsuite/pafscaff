@@ -1,7 +1,7 @@
 # PAFScaff: Pairwise mApping Format reference-based scaffold anchoring and super-scaffolding
 
 ```
-PAFScaff v0.6.3
+PAFScaff v0.7.1
 ```
 
 For a better rendering and navigation of this document, please download and open [`./docs/pafscaff.docs.html`](./docs/pafscaff.docs.html), or visit <https://slimsuite.github.io/pafscaff/>.
@@ -84,6 +84,7 @@ refprefix=X     : Reference chromosome prefix. If None, will use all $REFERENCE 
 newprefix=X     : Assembly chromosome prefix. If None, will not rename $ASSEMBLY scaffolds [None]
 unplaced=X      : Unplaced scaffold prefix. If None, will not rename unplaced $ASSEMBLY scaffolds [None]
 ctgprefix=X     : Unplaced contig prefix. Replaces unplaced=X when 0 gaps. [None]
+purechrom=T/F   : Whetheer to always output the first hit to any chromosome without the numerical suffix [False]
 sorted=X        : Criterion for $ASSEMBLY scaffold sorting (QryLen/Coverage/RefStart/None) [QryLen]
 minmap=PERC     : Minimum percentage mapping to a chromosome for assignment [0.0]
 minpurity=PERC  : Minimum percentage "purity" for assignment to Ref chromosome [50.0]
